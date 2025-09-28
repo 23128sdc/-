@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷的画廊</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: A simple, full-page responsive grid layout is used to display a gallery of images. This structure is optimal for a visual-only presentation, allowing users to easily scan and select images. Interaction is provided through a modal/lightbox view, which allows users to see a larger version of each image without leaving the page. This is the most direct and user-friendly approach for an image-only website. -->
+    <!-- Visualization & Content Choices: The core content is images. The presentation method is a responsive CSS grid (HTML/Tailwind). The primary interaction is clicking an image to open it in a larger modal view (JavaScript). This is justified as it provides a standard, intuitive gallery experience. No charts or complex data visualizations are needed. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            background-color: #f5f5f4; 
+            font-family: 'Inter', sans-serif;
+        }
+        /* 模态框过渡动画 */
+        .modal-enter {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .modal-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 300ms, transform 300ms;
+        }
+        .modal-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .modal-exit-active {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 300ms, transform 300ms;
+        }
+    </style>
+</head>
+<body class="text-stone-800">
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-stone-700">迷的画廊</h1>
+            <p id="image-count-text" class="text-stone-500 mt-2"></p>
+        </header>
+
+        <main id="gallery" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+        </main>
+    </div>
+
+    <!-- 全屏模态框 (Lightbox) -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
+        <div id="modal-content" class="relative max-w-4xl max-h-full modal-enter">
+            <img id="modal-image" src="" alt="放大的图片" class="rounded-lg shadow-2xl object-contain max-w-full max-h-[90vh]">
+            <button onclick="closeModal()" class="absolute -top-4 -right-4 h-10 w-10 bg-white rounded-full text-black flex items-center justify-center text-2xl font-bold shadow-lg hover:bg-gray-200 transition-colors" aria-label="关闭">
+                &times;
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const gallery = document.getElementById('gallery');
+        const modal = document.getElementById('modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalImage = document.getElementById('modal-image');
+        const imageCountText = document.getElementById('image-count-text');
+
+        const images = [
+            // 原始 10 张图片
+            { src: 'https://github.com/user-attachments/assets/67702c76-5b84-4ebc-ac04-532f7baa80c1', theme: '图片 1', aspectRatio: 'aspect-[2560/2644]' },
+            { src: 'https://github.com/user-attachments/assets/74d013f9-1044-4bf3-b55c-6ae92292215d', theme: '图片 2', aspectRatio: 'aspect-[1280/1952]' },
+            { src: 'https://github.com/user-attachments/assets/f1424a44-c3ed-411d-b9eb-d9402440aff1', theme: '图片 3', aspectRatio: 'aspect-[2068/2968]' },
+            { src: 'https://github.com/user-attachments/assets/9aa056bc-98e8-4e4c-ba8a-0f8bdd66f0ce', theme: '图片 4', aspectRatio: 'aspect-[1280/1640]' },
+            { src: 'https://github.com/user-attachments/assets/7ef85d44-e50b-47d1-9ae7-fdde03c2d799', theme: '图片 5', aspectRatio: 'aspect-[1280/1408]' },
+            { src: 'https://github.com/user-attachments/assets/c1e00d15-7302-4412-88c5-07e040c6daa4', theme: '图片 6', aspectRatio: 'aspect-[1280/1760]' },
+            { src: 'https://github.com/user-attachments/assets/04a90ed2-fd29-4e88-9f5f-9e6bc98f7a06', theme: '图片 7', aspectRatio: 'aspect-[2392/2252]' },
+            { src: 'https://github.com/user-attachments/assets/c3c70803-325d-45e0-9b0d-7849b2292919', theme: '图片 8', aspectRatio: 'aspect-square' },
+            { src: 'https://github.com/user-attachments/assets/86cb742f-1f40-47ad-93ce-447837387738', theme: '图片 9', aspectRatio: 'aspect-[2376/2485]' },
+            { src: 'https://github.com/user-attachments/assets/846d9293-6bee-4fee-98b7-ed2c33b7c726', theme: '图片 10', aspectRatio: 'aspect-[1280/1592]' },
+            // 新增 3 张图片
+            { src: 'https://github.com/user-attachments/assets/a837a858-d4de-49e3-834b-190015a9fc1c', theme: '图片 11', aspectRatio: 'aspect-[1523/1942]' },
+            { src: 'https://github.com/user-attachments/assets/a7702e44-ae38-43b1-b3f0-a962da9bdb5c', theme: '图片 12', aspectRatio: 'aspect-[1943/2879]' },
+            { src: 'https://github.com/user-attachments/assets/d2a4eb83-c5d5-4776-8088-60162f57d0ad', theme: '图片 13', aspectRatio: 'aspect-[1967/2424]' },
+        ];
+        
+        imageCountText.textContent = `共 ${images.length} 张精选图片 - 点击任意图片查看大图`;
+
+        // 动态计算并渲染图片网格
+        images.forEach((img, index) => {
+            const galleryItem = document.createElement('div');
+            
+            // 使用 img.aspectRatio 来确保容器比例正确
+            galleryItem.className = `w-full ${img.aspectRatio} bg-stone-200 rounded-lg overflow-hidden shadow-lg transform hover:scale-[1.02] transition-transform duration-300 cursor-pointer`;
+            
+            galleryItem.innerHTML = `
+                <img 
+                    src="${img.src}" 
+                    alt="${img.theme}" 
+                    class="w-full h-full object-cover transition-opacity duration-500 opacity-0" 
+                    onload="this.classList.remove('opacity-0');"
+                    onerror="this.onerror=null; this.src='https://placehold.co/400x600/D9D9D9/8B8589?text=加载失败';" 
+                    onclick="openModal('${img.src}', '${img.theme}')"
+                >
+            `;
+            gallery.appendChild(galleryItem);
+        });
+
+        function openModal(src, theme) {
+            modalImage.src = src;
+            modalImage.alt = `放大的图片: ${theme}`;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.add('modal-enter-active');
+            }, 10);
+        }
+        
+        function closeModal() {
+            modalContent.classList.remove('modal-enter-active');
+            modalContent.classList.add('modal-exit-active');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modalContent.classList.remove('modal-exit-active');
+            }, 300);
+        }
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+
+    </script>
+</body>
+</html>
